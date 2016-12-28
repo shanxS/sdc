@@ -5,6 +5,7 @@ an output.
 """
 
 import numpy as np
+from pprint import pprint
 
 
 class Layer:
@@ -50,6 +51,20 @@ class Linear(Layer):
             weights = self.inbound_layers[1].value
             bias = self.inbound_layers[2].value
             self.value = np.dot(inputs, weights) + bias
+
+
+class Sigmoid(Layer):
+    def __init__(self, inbound_layer):
+        # Notice the ordering of the input layers passed to the
+        # Layer constructor.
+        Layer.__init__(self, [inbound_layer])
+
+    def _sigmoid(self, input):
+        return 1. / (1. + np.exp(-1 * input))
+
+    def forward(self):
+        if len(self.inbound_layers) == 1:
+            self.value = self._sigmoid(self.inbound_layers[0].value)
 
 
 def topological_sort(feed_dict):
