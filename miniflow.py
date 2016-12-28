@@ -113,8 +113,9 @@ def forward_pass(output_neuron, sorted_neurons):
 
     Arguments:
 
-        `output_neuron`: A neuron in the graph, should be the output neuron (have no outgoing edges).
-        `sorted_neurons`: a topologically sorted list of neurons.
+    `output_neuron`: A neuron in the graph,
+     should be the output neuron (have no outgoing edges).
+    `sorted_neurons`: a topologically sorted list of neurons.
 
     Returns the output neuron's value
     """
