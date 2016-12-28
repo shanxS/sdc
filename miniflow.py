@@ -47,16 +47,39 @@ class Input(Neuron):
 
 
 class Add(Neuron):
-    def __init__(self, x, y):
+    def __init__(self, *args, **kwargs):
         # You could access `x` and `y` in forward with
         # self.inbound_neurons[0] (`x`) and self.inbound_neurons[1] (`y`)
-        Neuron.__init__(self, [x, y])
+        if len(args) > 0:
+            neurons = []
+            for a in args:
+                neurons.append(a)
+
+            Neuron.__init__(self, neurons)
 
     def forward(self):
         if len(self.inbound_neurons) > 0:
             self.value = 0
             for n in self.inbound_neurons:
                 self.value += n.value
+
+
+class Mul(Neuron):
+    def __init__(self, *args, **kwargs):
+        # You could access `x` and `y` in forward with
+        # self.inbound_neurons[0] (`x`) and self.inbound_neurons[1] (`y`)
+        if len(args) > 0:
+            neurons = []
+            for a in args:
+                neurons.append(a)
+
+            Neuron.__init__(self, neurons)
+
+    def forward(self):
+        if len(self.inbound_neurons) > 0:
+            self.value = 1
+            for n in self.inbound_neurons:
+                self.value *= n.value
 
 
 """
@@ -68,8 +91,8 @@ def topological_sort(feed_dict):
     """
     Sort generic nodes in topological order using Kahn's Algorithm.
 
-    `feed_dict`: A dictionary where the key is a `Input` node 
-    and the value is the respective value feed to that node.
+    feed_dict`: A dictionary where the key is a `Input` node and
+    the value is the respective value feed to that node.
 
     Returns a list of sorted nodes.
     """
@@ -113,9 +136,9 @@ def forward_pass(output_neuron, sorted_neurons):
 
     Arguments:
 
-    `output_neuron`: A neuron in the graph,
-     should be the output neuron (have no outgoing edges).
-    `sorted_neurons`: a topologically sorted list of neurons.
+        `output_neuron`: A neuron in the graph, should be the output neuron
+                (have no outgoing edges).
+        `sorted_neurons`: a topologically sorted list of neurons.
 
     Returns the output neuron's value
     """
