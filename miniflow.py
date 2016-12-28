@@ -46,8 +46,10 @@ class Linear(Layer):
 
     def forward(self):
         if len(self.inbound_layers) > 0:
-            self.value = self.inbound_layers[2].value + \
-                self.inbound_layers[0].value.dot(self.inbound_layers[1].value)
+            inputs = self.inbound_layers[0].value
+            weights = self.inbound_layers[1].value
+            bias = self.inbound_layers[2].value
+            self.value = np.dot(inputs, weights) + bias
 
 
 def topological_sort(feed_dict):
