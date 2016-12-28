@@ -1,32 +1,27 @@
 """
-This network feeds the output of a linear transform
-to the sigmoid function.
+Test your MSE method with this script!
 
-Finish implementing the Sigmoid class in miniflow.py!
-
-Feel free to play around with this network, too!
+No changes necessary, but feel free to play
+with this script to test your network.
 """
 
 import numpy as np
 from miniflow import *
 
-inputs, weights, bias = Input(), Input(), Input()
+y, a = Input(), Input()
+cost = MSE(y, a) 
 
-f = Linear(inputs, weights, bias)
-g = Sigmoid(f)
+y_ = np.array([1, 2, 3])
+a_ = np.array([4.5, 5, 10])
 
-x = np.array([[-1., -2.], [-1, -2]])
-w = np.array([[2., -3], [2., -3]])
-b = np.array([-3., -5])
-
-feed_dict = {inputs: x, weights: w, bias: b}
-
+feed_dict = {y: y_, a: a_}
 graph = topological_sort(feed_dict)
-output = forward_pass(g, graph)
+# forward pass
+forward_pass(graph)
 
 """
-Output should be:
-[[  1.23394576e-04   9.82013790e-01]
- [  1.23394576e-04   9.82013790e-01]]
+Expected output
+
+23.4166666667
 """
-print(output)
+print(cost.value)

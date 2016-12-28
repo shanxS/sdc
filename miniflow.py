@@ -67,6 +67,19 @@ class Sigmoid(Layer):
             self.value = self._sigmoid(self.inbound_layers[0].value)
 
 
+class MSE(Layer):
+    def __init__(self, y, a):
+        Layer.__init__(self, [y, a])
+
+    def forward(self):
+        expected = self.inbound_layers[0].value
+        got = self.inbound_layers[1].value
+        error = expected - got
+        squared = np.power(error, 2)
+        mean = np.sum(squared) / len(expected)
+        self.value = mean
+
+
 def topological_sort(feed_dict):
     """
     Sort the layers in topological order using Kahn's Algorithm.
@@ -110,7 +123,7 @@ def topological_sort(feed_dict):
     return L
 
 
-def forward_pass(output_layer, sorted_layers):
+def forward_pass(sorted_layers):
     """
     Performs a forward pass through a list of sorted Layers.
 
@@ -126,4 +139,3 @@ def forward_pass(output_layer, sorted_layers):
     for n in sorted_layers:
         n.forward()
 
-    return output_layer.value
