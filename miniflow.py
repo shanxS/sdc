@@ -1,91 +1,210 @@
-"""
-Modify Linear#forward so that it linearly transforms
-input matrices, weights matrices and a bias vector to
-an output.
-"""
-
 import numpy as np
-from pprint import pprint
 
 
 class Layer:
+    """
+    Base class for layers in the network.
+
+    Arguments:
+
+        `inbound_layers`: A list of layers with edges into this layer.
+    """
     def __init__(self, inbound_layers=[]):
+        """
+        Layer's constructor (runs when the object is instantiated). Sets
+        properties that all layers need.
+        """
+        # A list of layers with edges into this layer.
         self.inbound_layers = inbound_layers
+        # The eventual value of this layer. Set by running
+        # the forward() method.
         self.value = None
+        # A list of layers that this layer outputs to.
         self.outbound_layers = []
+        # New property! Keys are the inputs to this layer and
+        # their values are the partials of this layer with
+        # respect to that input.
+        self.gradients = {}
+        # Sets this layer as an outbound layer for all of
+        # this layer's inputs.
         for layer in inbound_layers:
             layer.outbound_layers.append(self)
 
     def forward():
+        """
+        Every layer that uses this class as a base class will
+        need to define its own `forward` method.
+        """
+        raise NotImplementedError
+
+    def backward():
+        """
+        Every layer that uses this class as a base class will
+        need to define its own `backward` method.
+        """
         raise NotImplementedError
 
 
 class Input(Layer):
     """
-    While it may be strange to consider an input a layer when
-    an input is only an individual node in a layer, for the sake
-    of simpler code we'll still use Layer as the base class.
-
-    Think of Input as collating many individual input nodes into
-    a Layer.
+    A generic input into the network.
     """
     def __init__(self):
-        # An Input layer has no inbound layers,
-        # so no need to pass anything to the Layer instantiator
+        # The base class constructor has to run to set all
+        # the properties here.
+        #
+        # The most important property on an Input is value.
+        # self.value is set during `topological_sort` later.
         Layer.__init__(self)
 
     def forward(self):
         # Do nothing because nothing is calculated.
         pass
 
+    def backward(self):
+        # An Input layer has no inputs so the gradient (derivative)
+        # is zero.
+        # The key, `self`, is reference to this object.
+        self.gradients = {self: 0}
+        # Weights and bias may be inputs, so you need to sum
+        # the gradient from output gradients.
+        for n in self.outbound_layers:
+            grad_cost = n.gradients[self]
+            self.gradients[self] += grad_cost * 1
+
 
 class Linear(Layer):
-    def __init__(self, inbound_layer, weights, bias):
-        # Notice the ordering of the input layers passed to the
-        # Layer constructor.
-        Layer.__init__(self, [inbound_layer, weights, bias])
+    """
+    Represents a layer that performs a linear transform.
+    """
+    def __init__(self, X, W, b):
+        # The base class (Layer) constructor. Weights and bias
+        # are treated like inbound layers.
+        Layer.__init__(self, [X, W, b])
 
     def forward(self):
-        if len(self.inbound_layers) > 0:
-            inputs = self.inbound_layers[0].value
-            weights = self.inbound_layers[1].value
-            bias = self.inbound_layers[2].value
-            self.value = np.dot(inputs, weights) + bias
+        """
+        Performs the math behind a linear transform.
+        """
+        X = self.inbound_layers[0].value
+        W = self.inbound_layers[1].value
+        b = self.inbound_layers[2].value
+        self.value = np.dot(X, W) + b
+
+    def backward(self):
+        """
+        Calculates the gradient based on the output values.
+        """
+        # Initialize a partial for each of the inbound_layers.
+        self.gradients = \
+            {n: np.zeros_like(n.value) for n in self.inbound_layers}
+        # Cycle through the outputs. The gradient will change depending
+        # on each output, so the gradients are summed over all outputs.
+        for n in self.outbound_layers:
+            # Get the partial of the cost with respect to this layer.
+            grad_cost = n.gradients[self]
+            # Set the partial of the loss with respect to this layer's inputs.
+            self.gradients[self.inbound_layers[0]] += \
+                np.dot(grad_cost, self.inbound_layers[1].value.T)
+            # Set the partial of the loss with respect to this layer's weights.
+            self.gradients[self.inbound_layers[1]] += \
+                np.dot(self.inbound_layers[0].value.T, grad_cost)
+            # Set the partial of the loss with respect to this layer's bias.
+            self.gradients[self.inbound_layers[2]] += \
+                np.sum(grad_cost, axis=0, keepdims=False)
 
 
 class Sigmoid(Layer):
-    def __init__(self, inbound_layer):
-        # Notice the ordering of the input layers passed to the
-        # Layer constructor.
-        Layer.__init__(self, [inbound_layer])
+    """
+    Represents a layer that performs the sigmoid activation function.
+    """
+    def __init__(self, layer):
+        # The base class constructor.
+        Layer.__init__(self, [layer])
 
-    def _sigmoid(self, input):
-        return 1. / (1. + np.exp(-1 * input))
+    def _sigmoid(self, x):
+        """
+        This method is separate from `forward` because it
+        will be used with `backward` as well.
+
+        `x`: A numpy array-like object.
+        """
+        return 1. / (1. + np.exp(-x))
 
     def forward(self):
-        if len(self.inbound_layers) == 1:
-            self.value = self._sigmoid(self.inbound_layers[0].value)
+        """
+        Perform the sigmoid function and set the value.
+        """
+        input_value = self.inbound_layers[0].value
+        self.value = self._sigmoid(input_value)
+
+    def backward(self):
+        """
+        Calculates the gradient using the derivative of
+        the sigmoid function.
+        """
+        # Initialize the gradients to 0.
+        self.gradients = \
+            {n: np.zeros_like(n.value) for n in self.inbound_layers}
+
+        # Cycle through the outputs. The gradient will change depending
+        # on each output, so the gradients are summed over all outputs.
+        for n in self.outbound_layers:
+            # Get the partial of the cost with respect to this layer.
+            grad_cost = n.gradients[self]
+
+            sigmoid = self.value
+            self.gradients[self.inbound_layers[0]] += sigmoid * (1 - sigmoid) * grad_cost
 
 
 class MSE(Layer):
     def __init__(self, y, a):
+        """
+        The mean squared error cost function.
+        Should be used as the last layer for a network.
+        """
+        # Call the base class' constructor.
         Layer.__init__(self, [y, a])
 
     def forward(self):
-        expected = self.inbound_layers[0].value
-        got = self.inbound_layers[1].value
-        error = expected - got
-        squared = np.power(error, 2)
-        mean = np.sum(squared) / len(expected)
-        self.value = mean
+        """
+        Calculates the mean squared error.
+        """
+        # NOTE: We reshape these to avoid possible matrix/vector broadcast
+        # errors.
+        #
+        # For example, if we subtract an array of shape (3,)
+        # from an array of shape
+        # (3,1) we get an array of shape(3,3) as the result when we want
+        # an array of shape (3,1) instead.
+        #
+        # Making both arrays (3,1) insures the result is (3,1) and does
+        # an elementwise subtraction as expected.
+        y = self.inbound_layers[0].value.reshape(-1, 1)
+        a = self.inbound_layers[1].value.reshape(-1, 1)
+
+        self.m = self.inbound_layers[0].value.shape[0]
+        # Save the computed output for backward.
+        self.diff = y - a
+        self.value = np.mean(self.diff**2)
+
+    def backward(self):
+        """
+        Calculates the gradient of the cost.
+
+        This is the final layer of the network so outbound layers
+        are not a concern.
+        """
+        self.gradients[self.inbound_layers[0]] = (2 / self.m) * self.diff
+        self.gradients[self.inbound_layers[1]] = (-2 / self.m) * self.diff
 
 
 def topological_sort(feed_dict):
     """
     Sort the layers in topological order using Kahn's Algorithm.
 
-    `feed_dict`: A dictionary where the key is a `Input`
-     Layer and the value is the respective value feed to that Layer.
+    `feed_dict`: A dictionary where the key is a
+     `Input` Layer and the value is the respective value feed to that Layer.
 
     Returns a list of sorted layers.
     """
@@ -123,19 +242,20 @@ def topological_sort(feed_dict):
     return L
 
 
-def forward_pass(sorted_layers):
+def forward_and_backward(graph):
     """
-    Performs a forward pass through a list of sorted Layers.
+    Performs a forward pass and
+     a backward pass through a list of sorted Layers.
 
     Arguments:
 
-    `output_layer`: A Layer in the graph,
-     should be the output layer (have no outgoing edges).
-    `sorted_layers`: a topologically sorted list of layers.
-
-    Returns the output layer's value
+        `graph`: The result of calling `topological_sort`.
     """
-
-    for n in sorted_layers:
+    # Forward pass
+    for n in graph:
         n.forward()
 
+    # Backward pass
+    # see: https://docs.python.org/2.3/whatsnew/section-slices.html
+    for n in graph[::-1]:
+        n.backward()
