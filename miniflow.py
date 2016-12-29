@@ -69,8 +69,7 @@ class Input(Layer):
         # Weights and bias may be inputs, so you need to sum
         # the gradient from output gradients.
         for n in self.outbound_layers:
-            grad_cost = n.gradients[self]
-            self.gradients[self] += grad_cost * 1
+            self.gradients[self] += n.gradients[self]
 
 
 class Linear(Layer):
@@ -146,15 +145,12 @@ class Sigmoid(Layer):
         # Initialize the gradients to 0.
         self.gradients = \
             {n: np.zeros_like(n.value) for n in self.inbound_layers}
-
-        # Cycle through the outputs. The gradient will change depending
-        # on each output, so the gradients are summed over all outputs.
+        # Sum the partial with respect to the input over all the outputs.
         for n in self.outbound_layers:
-            # Get the partial of the cost with respect to this layer.
             grad_cost = n.gradients[self]
-
             sigmoid = self.value
-            self.gradients[self.inbound_layers[0]] += sigmoid * (1 - sigmoid) * grad_cost
+            self.gradients[self.inbound_layers[0]] += \
+                sigmoid * (1 - sigmoid) * grad_cost
 
 
 class MSE(Layer):
@@ -173,8 +169,8 @@ class MSE(Layer):
         # NOTE: We reshape these to avoid possible matrix/vector broadcast
         # errors.
         #
-        # For example, if we subtract an array of shape (3,)
-        # from an array of shape
+        # For example, if we subtract an array of
+        # shape (3,) from an array of shape
         # (3,1) we get an array of shape(3,3) as the result when we want
         # an array of shape (3,1) instead.
         #
@@ -191,9 +187,6 @@ class MSE(Layer):
     def backward(self):
         """
         Calculates the gradient of the cost.
-
-        This is the final layer of the network so outbound layers
-        are not a concern.
         """
         self.gradients[self.inbound_layers[0]] = (2 / self.m) * self.diff
         self.gradients[self.inbound_layers[1]] = (-2 / self.m) * self.diff
@@ -244,8 +237,8 @@ def topological_sort(feed_dict):
 
 def forward_and_backward(graph):
     """
-    Performs a forward pass and
-     a backward pass through a list of sorted Layers.
+    Performs a forward pass and a backward pass
+     through a list of sorted Layers.
 
     Arguments:
 
@@ -259,3 +252,21 @@ def forward_and_backward(graph):
     # see: https://docs.python.org/2.3/whatsnew/section-slices.html
     for n in graph[::-1]:
         n.backward()
+
+
+def sgd_update(trainables, learning_rate=1e-2):
+    """
+    Updates the value of each trainable with SGD.
+
+    Arguments:
+
+        `trainables`: A list of `Input` Layers representing weights/biases.
+        `learning_rate`: The learning rate.
+    """
+    # TODO: update all the `trainables` with SGD
+    # You can access and assign the value
+    # of a trainable
+    # with `value` attribute.
+    # Example:
+    for t in trainables:
+        t.value -= t.gradients[t] * learning_rate
